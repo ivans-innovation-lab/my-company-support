@@ -1,2 +1,2 @@
-# project-support
+# my-company-support
 Code formatting.
