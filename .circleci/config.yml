@@ -12,26 +12,16 @@ jobs:
       - checkout
 
       - restore_cache:
-          key: my-company-support1-{{ checksum "pom.xml" }}
+          key: my-company-support-{{ checksum "pom.xml" }}
 
       - run: 
-          name: Install maven artifact
-          command: |
-            if [ "${CIRCLE_BRANCH}" != "master" ]; then
-              mvn -s .circleci/maven.settings.xml install -P idugalic-cloud
-            fi
-            
-      - deploy:
-          name: Deploy maven artifact
-          command: |
-            if [ "${CIRCLE_BRANCH}" == "master" ]; then
-              mvn -s .circleci/maven.settings.xml deploy -P idugalic-cloud
-            fi
+          name: Verify maven application (run any checks on results of integration tests to ensure quality criteria are met)
+          command: mvn -s .circleci/maven.settings.xml verify -P idugalic-cloud
 
       - save_cache:
           paths:
             - ~/.m2
-          key: my-company-support1-{{ checksum "pom.xml" }}
+          key: my-company-support-{{ checksum "pom.xml" }}
       
       - run:
           name: Collecting test results
@@ -45,6 +35,24 @@ jobs:
           
       - store_artifacts:
           path: junit/
+
+  deploy:
+    <<: *defaults
+    steps:
+
+      - checkout
+
+      - restore_cache:
+          key: my-company-support-{{ checksum "pom.xml" }}
+            
+      - deploy:
+          name: Deploy maven artifact
+          command: mvn -s .circleci/maven.settings.xml -DskipTests deploy -P idugalic-cloud
+
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: my-company-support-{{ checksum "pom.xml" }}
           
       - run:
           name: Collecting artifacts
@@ -54,19 +62,19 @@ jobs:
      
       - store_artifacts:
           path: artifacts/
-          
-      #- persist_to_workspace:
-      #    root: artifacts/
-      #    paths:
-      #      - .
-      
+
 notify:
   webhooks:
-  # A list of hashes representing hooks. Only the url field is supported.
     - url: https://webhook.atomist.com/atomist/circle
-
+ 
 workflows:
   version: 2
   my-company-support-workflow:
     jobs:
       - build
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
